@@ -1,4 +1,3 @@
-// src/components/CryptoList.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -9,76 +8,101 @@ import "./CryptoList.css";
 const CryptoList = () => {
   const [coins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [timeRange, setTimeRange] = useState("7d");
+
+  const fetchData = () => {
+    setLoading(true);
+    axios
+      .get("https://api.coingecko.com/api/v3/coins/markets", {
+        params: {
+          vs_currency: "usd",
+          order: "market_cap_desc",
+          per_page: 50,
+          page: 1,
+          sparkline: true,
+          price_change_percentage: timeRange,
+        },
+      })
+      .then((res) => {
+        setCoins(res.data);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
-  axios
-    .get("https://api.coingecko.com/api/v3/coins/markets", {
-      params: {
-        vs_currency: "usd",
-        order: "market_cap_desc",
-        per_page: 20,
-        page: 1,
-        sparkline: true,
-      },
-    })
-    .then((res) => {
-      setCoins(res.data);
-      setLoading(false);
-    })
-    .catch((error) => {
-      console.error("Error fetching data:", error);
-      setLoading(false);
-    });
-}, []);
+    fetchData();
+  }, [timeRange]);
 
+  const filteredCoins = coins.filter(
+    (coin) =>
+      coin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coin.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  if (loading) {
-    return <p className="loading">Loading data...</p>;
-  }
+  const toggleTheme = () => setDarkMode(!darkMode);
 
   return (
-    <div className="crypto-container">
-      <h2>Crypto Prices</h2>
-      <div className="crypto-list">
-        {coins.map((coin) => (
-          <div className="crypto-card" key={coin.id}>
-            <img src={coin.image} alt={coin.name} />
-            <h3>{coin.name}</h3>
-            <p>{coin.symbol.toUpperCase()}</p>
-            <p>${coin.current_price.toLocaleString()}</p>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height={100}>
-                <LineChart
-    data={coin.sparkline_in_7d.price.map((p, i) => ({
-      time: i,
-      price: p,
-    }))}
-  >
-    <Line
-      type="monotone"
-      dataKey="price"
-      stroke={coin.price_change_percentage_24h >= 0 ? "#4caf50" : "#e53935"} // Hijau atau merah
-      strokeWidth={2}
-      dot={false}
-    />
-    <XAxis dataKey="time" hide />
-    <YAxis domain={["auto", "auto"]} hide />
-    <Tooltip
-      formatter={(value) => `$${value.toFixed(2)}`}
-      contentStyle={{
-        backgroundColor: "#1e1e1e",
-        borderRadius: "8px",
-        border: "none",
-        color: "#fff",
-      }}
-      labelStyle={{ display: "none" }}
-    />
-  </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        ))}
+    <div className={`crypto-container ${darkMode ? "dark" : ""}`}>
+      <div className="crypto-header">
+        <h2>Crypto Prices</h2>
+        <div className="controls">
+          <input
+            type="text"
+            placeholder="Search..."
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select onChange={(e) => setTimeRange(e.target.value)} value={timeRange}>
+            <option value="7d">7D</option>
+            <option value="30d">30D</option>
+          </select>
+          <button onClick={toggleTheme}>
+            {darkMode ? "☀️ Light" : "🌙 Dark"}
+          </button>
+        </div>
       </div>
+
+      {loading ? (
+        <p className="loading">Loading data...</p>
+      ) : (
+        <div className="crypto-list">
+          {filteredCoins.map((coin) => {
+            const prices = coin.sparkline_in_7d?.price || [];
+            const isUp = prices.length > 1 && prices[prices.length - 1] >= prices[0];
+            return (
+              <div className="crypto-card" key={coin.id}>
+                <div className="rank-badge">#{coin.market_cap_rank}</div>
+                <img src={coin.image} alt={coin.name} />
+                <h3>{coin.name}</h3>
+                <p>{coin.symbol.toUpperCase()}</p>
+                <p>${coin.current_price.toLocaleString()}</p>
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={100}>
+                    <LineChart
+                      data={prices.map((p, i) => ({ time: i, price: p }))}
+                    >
+                      <Line
+                        type="monotone"
+                        dataKey="price"
+                        stroke={isUp ? "#00C853" : "#D32F2F"}
+                        dot={false}
+                      />
+                      <XAxis dataKey="time" hide />
+                      <YAxis domain={["auto", "auto"]} hide />
+                      <Tooltip />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
