@@ -39,4 +39,20 @@
     margin: 4px 0;
     color: #333;
   }
+
+  .chart-container {
+  margin-top: 10px;
+  width: 100%;
+  height: 100px;
+}
+  
+.loading {
+  text-align: center;
+  margin-top: 50px;
+  font-size: 18px;
+}
+
+.recharts-tooltip-wrapper {
+  font-size: 12px;
+}
   
